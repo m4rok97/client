@@ -1,4 +1,7 @@
 import datetime
+import fnmatch
+import functools
+import itertools
 import os
 import re
 import shutil
@@ -82,6 +85,12 @@ def build(sources, local_sources, ignore_folders, version_filters, custom_images
 
         tmp = os.path.join(wd, "tmp")
 
+        def ignore_hidden(path, names):
+            hidden = []
+            for name in names:
+                if name.startswith("."):
+                    hidden.append(name)
+            return set(hidden)
         def prepare_sources(core_name, local, folder, sid):
             dockerfiles = os.path.join(folder, "Dockerfiles")
             if not os.path.exists(dockerfiles):
@@ -90,7 +99,7 @@ def build(sources, local_sources, ignore_folders, version_filters, custom_images
             subfolders = list(filter(lambda name: name not in ignore_folders, os.listdir(dockerfiles)))
             core_folder = os.path.join(wd, core_name, str(sid))
             if local:
-                shutil.copytree(folder, core_folder, dirs_exist_ok=True)
+                shutil.copytree(folder, core_folder, dirs_exist_ok=True, ignore=ignore_hidden)
             else:
                 shutil.move(folder, core_folder)
             v = __setVersion(core_name, core_folder, version_map.get(core_name, version))
@@ -185,6 +194,7 @@ def build(sources, local_sources, ignore_folders, version_filters, custom_images
                                        core["version"], default_registry, namespace, 301))
         full_libs = list()
         if len(libs) > 0:
+            ignore_libs = list()
             print("Libraries:")
             for core, names in libs.items():
                 for name in names:
@@ -195,11 +205,16 @@ def build(sources, local_sources, ignore_folders, version_filters, custom_images
                         full_libs.append(name)
                         print()
                     else:
+                        ignore_libs.append(name + "-builder")
                         print(" IGNORED")
+
+                if core not in real_cores:
+                    continue
 
                 build_list.append(
                     __createDockerfile(wd, core + "-libs-compiler", names, cores_version[core], default_registry,
                                        namespace, 300, base=names[0] + "-builder"))
+            build_list = list(filter(lambda d: d["id"] not in ignore_libs, build_list))
 
         if real_cores and full:
             custom_images.insert(0, ["full", "driver", "executor"] + list(real_cores.keys()) + full_libs)
