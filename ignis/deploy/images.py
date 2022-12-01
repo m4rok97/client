@@ -1,7 +1,5 @@
 import datetime
 import fnmatch
-import functools
-import itertools
 import os
 import re
 import shutil
@@ -91,6 +89,7 @@ def build(sources, local_sources, ignore_folders, version_filters, custom_images
                 if name.startswith("."):
                     hidden.append(name)
             return set(hidden)
+
         def prepare_sources(core_name, local, folder, sid):
             dockerfiles = os.path.join(folder, "Dockerfiles")
             if not os.path.exists(dockerfiles):
@@ -352,21 +351,38 @@ def __getImages(client, version, default_registry, namespace, whitelist, blackli
     labels = ["ignis"] if version is None else ["ignis=" + version]
     prefix = default_registry + namespace
     imgs = client.images.list(name=prefix + "*", filters={"label": labels})
+    ref_names = list()
     white_tags = set()
     black_tags = set()
     result = list()
+    wildcard_s = re.compile(r"[\*\?\[\]\!#]")
 
-    if whitelist is not None:
-        for name in whitelist:
-            if ":" in name:
-                white_tags.add(name)
+    for img in imgs:
+        for tag in img.attrs['RepoTags']:
+            if "/" in tag:
+                tag = tag.split("/")[-1]
+            if ":" in tag:
+                ref_names.append(tag.split(":")[0])
             else:
-                white_tags.add(name + ":latest")
-    for name in blacklist:
-        if ":" in name:
-            black_tags.add(name)
-        else:
-            black_tags.add(name + ":latest")
+                ref_names.append(tag)
+
+    def prepare_tag(lst, tags):
+        if lst is not None:
+            lst2 = list()
+            for name in lst:
+                if wildcard_s.search(name):
+                    lst2.extend(fnmatch.filter(ref_names, name))
+                else:
+                    lst2.append(name)
+            lst = lst2
+            for name in lst:
+                if ":" in name:
+                    tags.add(name)
+                else:
+                    tags.add(name + ":latest")
+
+    prepare_tag(whitelist, white_tags)
+    prepare_tag(blacklist, black_tags)
 
     for img in imgs:
         for tag in img.tags:
