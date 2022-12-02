@@ -5,3 +5,7 @@ From: /ignis.img
 chmod -R 777 /opt/ignis
 chmod -R 755 /etc/ssh
 sed -i "s|#PidFile.*|PidFile /ssh/sshd.pid|" /etc/ssh/sshd_config
+mv /etc/ssh /etc/ssh2
+ln -s /ssh /etc/ssh
+sed -i '2 i cp -R /etc/ssh2/* /etc/ssh/ && chmod -R 700 /etc/ssh' /opt/ignis/bin/ignis-server
+sed -i '2 i export JAVA_TOOL_OPTIONS="-Xlog:disable -Xlog:all=warning:stderr:uptime,level,tags"' /opt/ignis/bin/ignis-backend
