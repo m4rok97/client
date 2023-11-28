@@ -3,6 +3,7 @@ import sys
 
 from ignishpc.common.formatter import SmartFormatter
 import version.cli
+import images.cli
 import config.cli
 
 
@@ -15,18 +16,28 @@ def main():
                                                  "within a unified environment. ",
                                      formatter_class=SmartFormatter,
                                      epilog="""Examples:
-                                     TODO    
+                                     | $ ignishpc image build ...
+                                     | $ ignishpc run ./driver
+                                     | $ ignishpc job cancel ...
+                                     | $ ignishpc service nomad start
+                                     
                                      For more help on how to use IgnisHPC, head to https://ignishpc.readthedocs.io""")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="print debugging information")
+    parser.add_argument("-c", "--config", action="store", metavar="path",
+                        help="specify a configuration file")
     subparsers = parser.add_subparsers(dest="cmd", title="Available Commands", metavar='<cmd>')
     subparsers.required = True
 
     available_cmds = {
         "config": config.cli.setup(subparsers),
+        "images": images.cli.setup(subparsers),
         "version": version.cli.setup(subparsers),
     }
     args = parser.parse_args()
+    from ignishpc.common import configuration
+    if not configuration.load_config(args.config):
+        print("warning: error in some configuration files, use 'ignishpc config info'", file=sys.stderr)
 
     try:
         available_cmds[args.cmd](args)
