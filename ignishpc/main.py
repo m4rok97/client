@@ -2,9 +2,11 @@ import argparse
 import sys
 
 from ignishpc.common.formatter import SmartFormatter
-import version.cli
-import images.cli
 import config.cli
+import images.cli
+import job.cli
+import services.cli
+import version.cli
 
 
 def main():
@@ -20,7 +22,7 @@ def main():
                                      | $ ignishpc run ./driver
                                      | $ ignishpc job cancel ...
                                      | $ ignishpc service nomad start
-                                     
+                                         
                                      For more help on how to use IgnisHPC, head to https://ignishpc.readthedocs.io""")
     parser.add_argument("-d", "--debug", action="store_true",
                         help="print debugging information")
@@ -32,13 +34,15 @@ def main():
     available_cmds = {
         "config": config.cli.setup(subparsers),
         "images": images.cli.setup(subparsers),
+        "job": job.cli.setup(subparsers),
+        "run": job.cli.setup(subparsers, run=True),
+        "services": services.cli.setup(subparsers),
         "version": version.cli.setup(subparsers),
     }
     args = parser.parse_args()
     from ignishpc.common import configuration
     if not configuration.load_config(args.config):
         print("warning: error in some configuration files, use 'ignishpc config info'", file=sys.stderr)
-
     try:
         available_cmds[args.cmd](args)
     except Exception as ex:
