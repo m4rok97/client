@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "ignishpc"
+version = "3.0.0"
+description = "A unified framework to improve the interoperability between HPC and Big Data languages and programming models"
+license = "LGPL-3.0-only"
+authors = [
+    "César Pomar <cesaralfredo.pineiro@usc.es>",
+    "Juan C. Pichel <juancarlos.pichel@usc.es>"
+]
+readme = "README.rst"
+repository = "https://github.com/ignishpc/ignishpc"
+documentation = "https://ignishpc.readthedocs.io"
+keywords = ["Big Data", "HPC", "MPI", "Multi-language", "Programming models"]
+classifiers = [
+    "Topic :: Software Development",
+    "Topic :: Utilities"
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+"ruamel.yaml" = "^0.18.5"
+docker = "^6.0"
+spython = "^0.3.1"
+python-hosts = "^1.0.4"
+GitPython = "^3.1.29"
+
+[tool.poetry.scripts]
+ignishpc = 'ignishpc:main'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
