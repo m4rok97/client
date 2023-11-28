@@ -3,6 +3,7 @@ import sys
 
 from ignishpc.common.formatter import SmartFormatter
 import version.cli
+import config.cli
 
 
 def main():
@@ -22,6 +23,7 @@ def main():
     subparsers.required = True
 
     available_cmds = {
+        "config": config.cli.setup(subparsers),
         "version": version.cli.setup(subparsers),
     }
     args = parser.parse_args()
