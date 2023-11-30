@@ -1,6 +1,4 @@
 import socket
-import string
-import random
 import subprocess
 
 
@@ -21,6 +19,3 @@ def get_local_ip():
     except:
         return get_ip(get_hostname())
 
-
-def random_password(k=10):
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=k))

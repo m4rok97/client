@@ -20,8 +20,8 @@ classifiers = [
 python = "^3.9"
 "ruamel.yaml" = "^0.18.5"
 docker = "^6.0"
-spython = "^0.3.1"
-python-hosts = "^1.0.4"
+spython = "^0.3.11"
+python-hosts = "^1.0"
 GitPython = "^3.1.29"
 
 [tool.poetry.scripts]

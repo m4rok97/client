@@ -1,39 +1,79 @@
 import os
+import string
+import random
+
+from spython.utils import check_install
 from ruamel.yaml import YAML, CommentedMap
 from ruamel.yaml.parser import MarkedYAMLError
 from ruamel.yaml.comments import CommentedBase
 
-USER_CONFIG = os.path.expanduser("~/.ignis/ignis.yaml")
-SYSTEM_CONFIG = "/etc/ignis/ignis.yaml"
+USER_CONFIG = os.getenv("IGNIS_USER_CONFIG", default=os.path.expanduser("~/.ignis/etc/ignis.yaml"))
+SYSTEM_CONFIG = os.getenv("IGNIS_SYSTEM_CONFIG", default="/etc/ignis/ignis.yaml")
 yaml = YAML()
-props = CommentedMap()
+props = yaml.load("""
+ignis:
+  container:
+    docker:
+      registry: ""
+      namespace: "ignishpc"
+      default: "ignishpc"
+      tag: "latest"
+      root: false
+      network: "default"
+    singularity:
+      source: "~/.ignis/images"
+      default: "ignishpc"
+      network: "default"
+    writable: false
+    #provider: ""
+""")
 
 
-def get_property(key):
+def get_property(key, default=None):
     names = key.split(".")
     entry = props
     for name in names:
         if name not in entry:
-            return None
+            return default
         entry = entry[name]
     return entry
 
 
+def has_property(key):
+    names = key.split(".")
+    entry = props
+    for name in names:
+        if name not in entry:
+            return False
+        entry = entry[name]
+    return True
+
+
+def set_property(key, value):
+    names = key.split(".")
+    entry = props
+    for name in names[:-1]:
+        if name not in entry:
+            entry[name] = CommentedMap()
+        entry = entry[name]
+    entry[names[-1]] = value
+
+
 def format_image(name):
     if "/" not in name:
-        namespace = get_property("ignis.container.namespace") or "ignishpc"
+        namespace = get_property("ignis.container.docker.namespace", default="ignishpc")
         if len(namespace) > 0 and namespace[-1] != "/":
             namespace += "/"
         name = namespace + name
 
     if name.count("/") == 1:
-        registry = get_property("ignis.container.registry") or ""
+        registry = get_property("ignis.container.docker.registry", default="")
         if len(registry) > 0 and registry[-1] != "/":
             registry += "/"
         name = registry + name
 
     if ":" not in name or name.rindex(":") > name.rindex("/"):
-        tag = get_property("ignis.container.tag") or ""
+        tag = get_property("ignis.container.docker.tag", default="")
         if len(tag) > 0 and tag[0] != ':':
             tag = ":" + tag
         name = name + tag
@@ -41,11 +81,23 @@ def format_image(name):
     return name
 
 
-def working_directory():
-    try:
-        return os.path.expanduser(yaml["ignis"]["wdir"])
-    except:
-        return os.getcwd()
+def default_image():
+    prefix = ""
+    if get_property("ignis.container.provider") == "singularity":
+        source = get_property("ignis.container.singularity.source")
+        image = source + ("" if source.endswith("/") else "/") + get_property("ignis.container.singularity.default")
+        if (os.path.exists(source) and os.path.exists(image)) or ":" in image:
+            return image
+        prefix = "docker://"
+
+    return prefix + format_image(get_property("ignis.container.docker.default"))
+
+
+def network():
+    if get_property("ignis.container.provider") == "singularity":
+        return get_property("ignis.container.singularity.network")
+    else:
+        return get_property("ignis.container.docker.network")
 
 
 def yaml_merge(target, source):
@@ -65,35 +117,23 @@ def read_file_config(path):
         return yaml.load(file)
 
 
-def read_sys_config():
-    return read_file_config(SYSTEM_CONFIG)
-
-
-def read_user_config():
-    return read_file_config(USER_CONFIG)
-
-
-def read_cli_config(path):
-    return read_file_config(path)
-
-
 def load_config(path):
     ok = True
-    try:
-        yaml_merge(props, read_sys_config())
-    except FileNotFoundError:
-        pass
-    except:
-        ok = False
-    try:
-        yaml_merge(props, read_user_config())
-    except FileNotFoundError:
-        pass
-    except:
-        ok = False
-    if path is not None:
-        try:
-            yaml_merge(props, read_cli_config(path))
-        except:
-            ok = False
-    return ok
+    for file in [SYSTEM_CONFIG, USER_CONFIG, path]:
+        if file is not None and os.path.exists(file):
+            try:
+                yaml_merge(props, read_file_config(file))
+            except:
+                ok = False
+
+    if not has_property("ignis.container.provider"):
+        set_property("ignis.container.provider", "singularity" if check_install() else "docker")
+
+    if not has_property("ignis.wdir"):
+        set_property("ignis.wdir", os.getcwd())
+
+    return ok or (path is not None and os.path.exists(path))
+
+
+def random_password(k=10):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=k))
