@@ -35,7 +35,7 @@ def main():
         "config": config.cli.setup(subparsers),
         "images": images.cli.setup(subparsers),
         "job": job.cli.setup(subparsers),
-        "run": job.cli.setup(subparsers, run=True),
+        "run": job.cli.setup_run(subparsers),
         "services": services.cli.setup(subparsers),
         "version": version.cli.setup(subparsers),
     }
@@ -51,6 +51,7 @@ def main():
             traceback.print_exception(ex)
         else:
             print("Error:", ex, file=sys.stderr)
+        exit(-1)
 
 
 if __name__ == "__main__":

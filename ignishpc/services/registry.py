@@ -60,7 +60,7 @@ def _start(args):
         if not os.path.exists(environment["REGISTRY_HTTP_SECRET"]):
             print("secret not found, generating random")
             with open(environment["REGISTRY_HTTP_SECRET"], "w") as file:
-                file.write(network.random_password(16))
+                file.write(configuration.random_password(16))
                 file.flush()
 
     client.containers.run(

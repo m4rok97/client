@@ -3,7 +3,6 @@ import sys
 import shutil
 
 from ignishpc.common import configuration
-from ignishpc.common import container
 
 
 def _run(args):
@@ -16,62 +15,50 @@ def _run(args):
     }[args.action](args)
 
 
+def _check_config(path):
+    try:
+        configuration.read_file_config(path)
+        return "OK"
+    except FileNotFoundError:
+        return "NOT FOUND"
+    except configuration.MarkedYAMLError as ex:
+        return ex.problem + " " + ex.problem_mark
+    except Exception as ex:
+        return str(ex).replace("\n", " ")
+
+
+def _check_docker():
+    import docker
+
+    try:
+        docker.from_env().test_docker()
+        return "OK"
+    except Exception as ex:
+        return str(ex).replace("\n", " ")
+
+
+def _check_singularity():
+    from spython.utils import check_install
+    return "OK" if check_install() else "NOT_FOUND"
+
+
 def _info(args):
     print("Property files:")
-    config = configuration.CommentedMap()
-
-    print("  System: ", end="")
-    try:
-        configuration.yaml_merge(config, configuration.read_sys_config())
-        print("OK")
-    except FileNotFoundError:
-        print("NOT FOUND")
-    except configuration.MarkedYAMLError as ex:
-        print(ex.problem, ex.problem_mark)
-    except Exception as ex:
-        print(str(ex).replace("\n", " "))
-
-    print("  User: ", end="")
-    try:
-        configuration.yaml_merge(config, configuration.read_user_config())
-        print("OK")
-    except FileNotFoundError:
-        print("NOT FOUND")
-    except configuration.MarkedYAMLError as ex:
-        print(ex.problem, ex.problem_mark)
-    except Exception as ex:
-        print(str(ex).replace("\n", " "))
-
+    print(f"  System: ({configuration.SYSTEM_CONFIG}): {_check_config(configuration.SYSTEM_CONFIG)}")
+    print(f"  user: ({configuration.USER_CONFIG}): {_check_config(configuration.USER_CONFIG)}")
     if args.config is not None:
-        print("  Cli: ", end="")
-        try:
-            configuration.yaml_merge(config, configuration.read_cli_config(args.config))
-            print("OK")
-        except FileNotFoundError:
-            print("NOT FOUND")
-        except configuration.MarkedYAMLError as ex:
-            print(ex.problem, ex.problem_mark)
-        except Exception as ex:
-            print(str(ex).replace("\n", " "))
+        print(f"  Cli: ({args.config}): {_check_config(args.config)}")
+    else:
+        print("  Cli: NONE")
 
-    print("Container Technology:")
-    print("  Docker: ", end="")
-    try:
-        container.test_docker()
-        print("OK")
-    except Exception as ex:
-        print(str(ex).replace("\n", " "))
-    print("  Singularity: ", end="")
-    try:
-        container.test_singularity()
-        print("OK")
-    except Exception as ex:
-        print(str(ex).replace("\n", " "))
+    print("Container providers:")
+    print("  Docker:", _check_docker())
+    print("  Singularity:", _check_singularity())
 
-    print("Working Environment: ")
-    print("  Container provider:", container.provider)
-    print("  Working directory:", configuration.working_directory())
-    print("  Default container:", container.default_container())
+    print("Job Environment: ")
+    print("  Working directory:", configuration.get_property("ignis.wdir"))
+    print("  Container provider:", configuration.get_property("ignis.container.provider"))
+    print("  Default image:", configuration.default_image())
 
 
 def _list(args):
@@ -80,16 +67,16 @@ def _list(args):
     else:
         configs = list()
         try:
-            configs.append(configuration.read_sys_config())
+            configs.append(configuration.read_file_config(configuration.SYSTEM_CONFIG))
         except:
             pass
         try:
-            configs.append(configuration.read_user_config())
+            configs.append(configuration.read_file_config(configuration.USER_CONFIG))
         except:
             pass
         if args.config:
             try:
-                configs.append(configuration.read_cli_config(args.config))
+                configs.append(configuration.read_file_config(args.config))
             except:
                 pass
         configuration.yaml.dump_all(configs, sys.stdout)
@@ -105,7 +92,7 @@ def _set(args):
 
     for prop in args.props:
         if "=" not in prop or len(prop.split('=')[0].strip()) == 0:
-            raise RuntimeError(prop + " is not a property")
+            raise RuntimeError(prop + " is not a valid property")
         key, value = prop.split('=', maxsplit=1)
         keys = key.split('.')
         entry = config
@@ -144,10 +131,15 @@ def _get(args):
                 entry = entry[k]
             if isinstance(entry, configuration.CommentedBase) and args.plain_value:
                 raise RuntimeError("key '" + key + "' does not have a plain value")
-            print(key + "=" + str(entry))
+            if args.only_value:
+                print(str(entry))
+            else:
+                print(key + "=" + str(entry))
         except Exception as ex:
             if args.fail:
                 raise ex
+            elif args.only_value:
+                print()
 
 
 def _remove_key(config, key):
@@ -159,9 +151,9 @@ def _remove_key(config, key):
         stack.append(stack[-1][k])
     if keys[-1] in stack[-1]:
         del stack[-1][keys[-1]]
-        for i in range(len(stack)-1, 1, -1):
+        for i in range(len(stack) - 1, 1, -1):
             if len(stack[i]) == 0:
-                stack[i-1].popitem(stack[i])
+                stack[i - 1].popitem(stack[i])
             else:
                 break
         return True

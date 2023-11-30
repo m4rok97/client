@@ -142,6 +142,8 @@ def _pull(args):
                 mounts=[docker.types.Mount("/root", wd, "bind"),
                         docker.types.Mount(os.path.dirname(target), os.path.dirname(target), "bind")],
                 platform=args.arch,
+                stdout=True,
+                stderr=True,
                 user="{}:{}".format(os.getuid(), os.getgid())
             )
         except docker.errors.ContainerError as ex:

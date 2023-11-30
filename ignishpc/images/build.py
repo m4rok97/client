@@ -12,6 +12,8 @@ import git
 import docker
 import docker.errors
 
+from ignishpc.common import configuration
+
 
 def _replace_all(s, vars):
     for var, value in vars.items():
@@ -200,6 +202,12 @@ def _run(args):
         "BUILD_CORES": str(os.cpu_count()) if args.jobs is None else args.jobs,
         "VERSION": "dev" if args.tag == "latest" else args.tag
     }
+
+    if build_args["REGISTRY"] is None:
+        build_args["REGISTRY"] = configuration.get_property("ignis.container.docker.registry")
+
+    if build_args["NAMESPACE"] is None:
+        build_args["NAMESPACE"] = configuration.get_property("ignis.container.docker.namespace")
 
     if len(build_args["REGISTRY"]) != 0 and not build_args["REGISTRY"].endswith("/"):
         build_args["REGISTRY"] += "/"

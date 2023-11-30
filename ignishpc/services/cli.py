@@ -22,24 +22,20 @@ def _create_service(services, *args, **kargs):
 
 
 def setup(subparsers):
-    parser = subparsers.add_parser("services", **desc("Manage services (docker required)"),
-                                   formatter_class=SmartFormatter,
-                                   epilog="""Examples:
-                                     | $ ignishpc TODO ...
-                                     """
-                                   )
+    parser = subparsers.add_parser("services", **desc("Docker-Based Service Management"))
 
     services = parser.add_subparsers(dest="service", title="Available Services", metavar='<services>')
 
-    status = services.add_parser("status", description="Show services status")
+    services.add_parser("status", description="Display service status")
 
-    registry = _create_service(services, "registry", **desc("Docker image registry service"),
+    registry = _create_service(services, "registry", **desc("Service for managing Docker image registry"),
                                formatter_class=SmartFormatter,
                                epilog="""Examples:
-                                     | $ ignishpc services registry start  --https-self
+                                     | $ ignishpc services registry start --https-self
                                      | $ ignishpc services registry destroy
                                      Note: /etc/ignis/registry is mounted to use certs (domain.crt, domain.key, secret).
                                      """)
+
     registry["garbage"] = registry["actions"].add_parser("garbage", description='Run registry garbage collection')
     registry["garbage"].add_argument("-m", "--delete-untagged", action="store_true", default=False,
                                      help="delete manifests that are not currently referenced via tag")
@@ -48,7 +44,7 @@ def setup(subparsers):
                                    help="address that should be bound to for internal cluster communications, "
                                         "default all interfaces")
     registry["start"].add_argument("-p", "--port", action="store", metavar="int", type=int,
-                                   help="server Port, default 5000")
+                                   help="server port, default 5000")
     registry["start"].add_argument("-e", "--env", action="append", metavar="key=value", default=[],
                                    help="configure a registry enviroment variable")
     registry["start"].add_argument('--path', dest='path', action='store', metavar='str',
