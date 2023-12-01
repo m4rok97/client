@@ -1,8 +1,8 @@
 import os
 import string
 import random
+import subprocess
 
-from spython.utils import check_install
 from ruamel.yaml import YAML, CommentedMap
 from ruamel.yaml.parser import MarkedYAMLError
 from ruamel.yaml.comments import CommentedBase
@@ -22,7 +22,7 @@ ignis:
       network: "default"
     singularity:
       source: "~/.ignis/images"
-      default: "ignishpc"
+      default: "ignishpc.sif"
       network: "default"
     writable: false
     #provider: ""
@@ -84,9 +84,9 @@ def format_image(name):
 def default_image():
     prefix = ""
     if get_property("ignis.container.provider") == "singularity":
-        source = get_property("ignis.container.singularity.source")
+        source = os.path.expanduser(get_property("ignis.container.singularity.source"))
         image = source + ("" if source.endswith("/") else "/") + get_property("ignis.container.singularity.default")
-        if (os.path.exists(source) and os.path.exists(image)) or ":" in image:
+        if os.path.exists(image) or ":" in image:
             return image
         prefix = "docker://"
 
@@ -114,7 +114,13 @@ def yaml_merge(target, source):
 
 def read_file_config(path):
     with open(path) as file:
-        return yaml.load(file)
+        data = file.read()
+        data = os.path.expandvars(data)
+        return yaml.load(data)
+
+
+def _check_singularity():
+    return subprocess.run(["singularity", "version"], capture_output=True).returncode == 0
 
 
 def load_config(path):
@@ -127,7 +133,7 @@ def load_config(path):
                 ok = False
 
     if not has_property("ignis.container.provider"):
-        set_property("ignis.container.provider", "singularity" if check_install() else "docker")
+        set_property("ignis.container.provider", "singularity" if _check_singularity() else "docker")
 
     if not has_property("ignis.wdir"):
         set_property("ignis.wdir", os.getcwd())

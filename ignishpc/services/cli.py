@@ -9,22 +9,24 @@ def _cmd(args):
 def _create_service(services, *args, **kargs):
     parser = services.add_parser(*args, **kargs)
     actions = parser.add_subparsers(dest="action", title="Available Actions", metavar="<action>")
+    actions.required = True
 
     return {
         "parser": parser,
         "actions": actions,
-        "start": actions.add_parser("start", description="Start the service"),
-        "stop": actions.add_parser("stop", description="Stop the service"),
-        "resume": actions.add_parser("resume", description="Resume the service"),
-        "destroy": actions.add_parser("destroy", description="Destroy the service"),
-        "status": actions.add_parser("status", description="Status of the service")
+        "start": actions.add_parser("start", **desc("Start the service")),
+        "stop": actions.add_parser("stop", **desc("Stop the service")),
+        "resume": actions.add_parser("resume", **desc("Resume the service")),
+        "destroy": actions.add_parser("destroy", **desc("Destroy the service")),
+        "status": actions.add_parser("status", **desc("Status of the service"))
     }
 
 
 def setup(subparsers):
     parser = subparsers.add_parser("services", **desc("Docker-Based Service Management"))
 
-    services = parser.add_subparsers(dest="service", title="Available Services", metavar='<services>')
+    services = parser.add_subparsers(dest="service", title="Available Services", metavar='<service>')
+    services.required = True
 
     services.add_parser("status", description="Display service status")
 

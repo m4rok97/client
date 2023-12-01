@@ -16,6 +16,7 @@ def setup(subparsers):
                                    )
 
     actions = parser.add_subparsers(dest="action", title="Available Actions", metavar='<action>')
+    actions.required = True
 
     build = actions.add_parser("build", **desc('Build images'), formatter_class=SmartFormatter,
                                epilog="""Examples:

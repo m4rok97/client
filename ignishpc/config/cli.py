@@ -16,6 +16,7 @@ def setup(subparsers):
                                      | $ ignishpc config rm -u ignis.container.image""")
 
     actions = parser.add_subparsers(dest="action", title="Available Actions", metavar='<action>')
+    actions.required = True
 
     actions.add_parser("info", **desc("Show configuration"))
     _list = actions.add_parser("list", help="show properties")

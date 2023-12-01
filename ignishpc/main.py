@@ -1,12 +1,13 @@
+import subprocess
 import argparse
 import sys
 
 from ignishpc.common.formatter import SmartFormatter
-import config.cli
-import images.cli
-import job.cli
-import services.cli
-import version.cli
+import ignishpc.config.cli
+import ignishpc.images.cli
+import ignishpc.job.cli
+import ignishpc.services.cli
+import ignishpc.version.cli
 
 
 def main():
@@ -19,7 +20,7 @@ def main():
                                      formatter_class=SmartFormatter,
                                      epilog="""Examples:
                                      | $ ignishpc image build ...
-                                     | $ ignishpc run ./driver
+                                     | $ ignishpc run myapp
                                      | $ ignishpc job cancel ...
                                      | $ ignishpc service nomad start
                                          
@@ -32,12 +33,12 @@ def main():
     subparsers.required = True
 
     available_cmds = {
-        "config": config.cli.setup(subparsers),
-        "images": images.cli.setup(subparsers),
-        "job": job.cli.setup(subparsers),
-        "run": job.cli.setup_run(subparsers),
-        "services": services.cli.setup(subparsers),
-        "version": version.cli.setup(subparsers),
+        "config": ignishpc.config.cli.setup(subparsers),
+        "images": ignishpc.images.cli.setup(subparsers),
+        "job": ignishpc.job.cli.setup(subparsers),
+        "run": ignishpc.job.cli.setup_run(subparsers),
+        "services": ignishpc.services.cli.setup(subparsers),
+        "version": ignishpc.version.cli.setup(subparsers),
     }
     args = parser.parse_args()
     from ignishpc.common import configuration
@@ -45,6 +46,8 @@ def main():
         print("warning: error in some configuration files, use 'ignishpc config info'", file=sys.stderr)
     try:
         available_cmds[args.cmd](args)
+    except subprocess.CalledProcessError as ex:
+        exit(ex.returncode)
     except Exception as ex:
         if args.debug:
             import traceback

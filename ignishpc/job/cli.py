@@ -11,6 +11,7 @@ def setup(subparsers):
     parser = subparsers.add_parser("job", **desc("Manage jobs"))
 
     actions = parser.add_subparsers(dest="action", title="Available Actions", metavar='<action>')
+    actions.required = True
 
     setup_run(actions)
 
@@ -21,8 +22,8 @@ def setup(subparsers):
                       help="job id")
 
     cancel = actions.add_parser("cancel", **desc("Cancel a job"))
-    info.add_argument("id", action="store", metavar="str",
-                      help="job id")
+    cancel.add_argument("id", action="store", metavar="str",
+                        help="job id")
 
     return _cmd
 
@@ -31,7 +32,9 @@ def setup_run(subparsers):
     run = subparsers.add_parser("run", **desc("Run a job"),
                                 formatter_class=SmartFormatter,
                                 epilog="""Examples:
-                                     | $ ignishpc run ...
+                                     | $ ignishpc run myapp
+                                     | $ ignishpc run --cores 4 --instance 2 --mem 10GB myapp --app-arg 1
+                                     | $ ignishpc run --cores 4 --static - myapp 1 2 3
                                      """)
 
     run.add_argument("command", action="store",
@@ -50,7 +53,8 @@ def setup_run(subparsers):
     run.add_argument("-t", "--time", action="store", metavar="[dd-]hh:mm:ss",
                      help="set a limit on the total run time of the job")
     run.add_argument("-s", "--static", action="store", metavar="path",
-                     help="static allocation, cluster properties are load from a file. Use '-' for a single cluster")
+                     help="force static allocation, cluster properties are load from a file. "
+                          "Use '-' for a single cluster")
     run.add_argument("--scheduler-args", action="store", metavar="'args'",
                      help="send additional arguments to scheduler")
 
