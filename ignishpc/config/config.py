@@ -1,6 +1,7 @@
 import os.path
 import sys
 import shutil
+import subprocess
 
 from ignishpc.common import configuration
 
@@ -29,17 +30,21 @@ def _check_config(path):
 
 def _check_docker():
     import docker
-
     try:
-        docker.from_env().test_docker()
+        info = docker.from_env().version()
+        if "Version" in info:
+            return info["Version"]
         return "OK"
     except Exception as ex:
         return str(ex).replace("\n", " ")
 
 
 def _check_singularity():
-    from spython.utils import check_install
-    return "OK" if check_install() else "NOT_FOUND"
+    try:
+        info = subprocess.run(["singularity", "version"], capture_output=True, encoding="utf-8", check=True)
+        return info.stdout.strip()
+    except:
+        return "NOT FOUND"
 
 
 def _info(args):

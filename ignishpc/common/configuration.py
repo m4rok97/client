@@ -120,7 +120,10 @@ def read_file_config(path):
 
 
 def _check_singularity():
-    return subprocess.run(["singularity", "version"], capture_output=True).returncode == 0
+    try:
+        return subprocess.run(["singularity", "version"], capture_output=True).returncode == 0
+    except:
+        return False
 
 
 def load_config(path):

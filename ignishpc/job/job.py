@@ -43,7 +43,6 @@ def _docker_stdin(c, con=None):
 
 
 def _container_job(args, wdir, files, it):
-    it = False
     writable = configuration.get_property("ignis.container.writable")
     network = configuration.network()
     if configuration.get_property("ignis.container.provider") == "singularity":
@@ -128,6 +127,7 @@ def _job_run(args):
     _set_property(args, "instances", "ignis.executor.instances")
     _set_property(args, "mem", "ignis.executor.memory")
     _set_property(args, "gpu", "ignis.executor.gpu")
+    _set_property(args, "img", "ignis.driver.image")
     _set_property(args, "img", "ignis.executor.image")
     _set_property(args, "driver_cores", "ignis.driver.cores")
     _set_property(args, "driver_mem", "ignis.driver.memory")
@@ -153,7 +153,10 @@ def _job_run(args):
     for entry in args.env:
         job += ["--env", entry]
 
-    job += ["--env", env_props]
+    for entry in args.bind:
+        job += ["--bind", entry]
+
+    job += ["--property", "ignis.options=" + env_props]
 
     if args.interactive:
         job.append("--interactive")
@@ -163,11 +166,14 @@ def _job_run(args):
 
     if args.static is not None:
         job += ["--static", args.static]
+        if args.static != '-' and os.path.exists(args.static):
+            files.append(os.path.abspath(args.static))
 
-    if args.scheduler_args is not None:
-        job += ["--scheduler-args", args.scheduler_args]
-        if args.scheduler_args != '-' and os.path.exists(args.scheduler_args):
-            files.append(os.path.abspath(args.scheduler_args))
+    if args.verbose:
+        job.append("--verbose")
+
+    if args.debug:
+        job.append("--debug")
 
     job.append(args.command)
 

@@ -1,5 +1,4 @@
-import os.path
-
+from ignishpc.common.formatter import desc
 
 def _cmd(args):
     import importlib.metadata
@@ -7,5 +6,5 @@ def _cmd(args):
 
 
 def setup(subparsers):
-    subparsers.add_parser("version", help="Show version information")
+    subparsers.add_parser("version", **desc("Show version information"))
     return _cmd

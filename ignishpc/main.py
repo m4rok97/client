@@ -1,8 +1,10 @@
+import argcomplete
 import subprocess
 import argparse
 import sys
 
 from ignishpc.common.formatter import SmartFormatter
+import ignishpc.completion.cli
 import ignishpc.config.cli
 import ignishpc.images.cli
 import ignishpc.job.cli
@@ -26,13 +28,14 @@ def main():
                                          
                                      For more help on how to use IgnisHPC, head to https://ignishpc.readthedocs.io""")
     parser.add_argument("-d", "--debug", action="store_true",
-                        help="print debugging information")
+                        help="display debugging information")
     parser.add_argument("-c", "--config", action="store", metavar="path",
                         help="specify a configuration file")
     subparsers = parser.add_subparsers(dest="cmd", title="Available Commands", metavar='<cmd>')
     subparsers.required = True
 
     available_cmds = {
+        "completion": ignishpc.completion.cli.setup(subparsers),
         "config": ignishpc.config.cli.setup(subparsers),
         "images": ignishpc.images.cli.setup(subparsers),
         "job": ignishpc.job.cli.setup(subparsers),
@@ -40,6 +43,7 @@ def main():
         "services": ignishpc.services.cli.setup(subparsers),
         "version": ignishpc.version.cli.setup(subparsers),
     }
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     from ignishpc.common import configuration
     if not configuration.load_config(args.config):
