@@ -1,4 +1,4 @@
-from ignishpc.common.formatter import SmartFormatter, desc
+from ignishpc.common.formatter import SmartFormatter, desc, key_value_t
 
 
 def _cmd(args):
@@ -24,12 +24,12 @@ def setup(subparsers):
                        help="show properties split by file")
 
     set = actions.add_parser("set", **desc("Set properties"))
-    set.add_argument("props", metavar="key=value", nargs='+', help="Properties")
+    set.add_argument("props", metavar="key=value", nargs="+", type=key_value_t, help="Properties")
     set.add_argument("-s", "--system", action="store_true", help="modify system file instead of user file")
 
     get = actions.add_parser("get", **desc("Get properties"))
     get_e = get.add_mutually_exclusive_group()
-    get.add_argument("keys", metavar="key", nargs='+', help="keys")
+    get.add_argument("keys", metavar="key", nargs="+", help="keys")
     get_e.add_argument("-u", "--user", action="store_true",
                        help="get only from user file")
     get_e.add_argument("-s", "--system", action="store_true",
@@ -43,7 +43,7 @@ def setup(subparsers):
 
     rm = actions.add_parser("rm", **desc("Remove properties"))
     rm_e = rm.add_mutually_exclusive_group()
-    rm.add_argument("keys", metavar="key", nargs='+', help="Keys")
+    rm.add_argument("keys", metavar="key", nargs="+", help="Keys")
     rm_e.add_argument("-u", "--user", action="store_true",
                       help="remove only from user file")
     rm_e.add_argument("-s", "--system", action="store_true",

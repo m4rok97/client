@@ -15,10 +15,8 @@ def _container_name():
 def _start(args):
     client = docker.from_env()
     name = _container_name()
-    try:
-        environment = dict.fromkeys([entry.split("=", 1) for entry in args.env])
-    except:
-        raise RuntimeError("Bad enviroment variable")
+    environment = dict.fromkeys([entry.split("=", 1) for entry in args.env])
+
     https = args.https or "REGISTRY_HTTP_TLS_CERTIFICATE" in environment
     image = configuration.format_image("registry")
 
@@ -69,12 +67,11 @@ def _start(args):
         detach=True,
         environment=environment,
         mounts=mounts,
-        network="host" if args.bind is not None else None,
-        ports={port: port},
+        ports={port: port} if args.bind is None else {port: (port, network.get_local_ip())},
         restart_policy={"Name": "always"}
     )
 
-    bind = args.bind or network.get_hostname()
+    bind = args.bind or network.get_address()
 
     if not https:
         print(f'info: add \'{{"insecure-registries" : [ "{bind}:{port}" ]}}\' '

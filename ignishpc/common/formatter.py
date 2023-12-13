@@ -1,3 +1,4 @@
+import re
 from typing import List
 import argparse
 
@@ -35,3 +36,15 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def desc(txt):
     return {'help': txt, 'description': txt}
+
+
+def key_value_t(x):
+    if "=" not in x:
+        raise argparse.ArgumentTypeError("format must be key=value")
+    return x
+
+
+def time_t(x):
+    if not re.match(r"([0-9]+-)?([0-9]+:)?[0-9]+:[0-9]+", x):  # [[dd-]hh:]mm:ss
+        raise argparse.ArgumentTypeError("invalid time format")
+    return x

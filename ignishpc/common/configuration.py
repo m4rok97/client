@@ -2,6 +2,8 @@ import os
 import string
 import random
 import subprocess
+import re
+import sys
 
 from ruamel.yaml import YAML, CommentedMap
 from ruamel.yaml.parser import MarkedYAMLError
@@ -10,6 +12,7 @@ from ruamel.yaml.comments import CommentedBase
 USER_CONFIG = os.getenv("IGNIS_USER_CONFIG", default=os.path.expanduser("~/.ignis/etc/ignis.yaml"))
 SYSTEM_CONFIG = os.getenv("IGNIS_SYSTEM_CONFIG", default="/etc/ignis/ignis.yaml")
 yaml = YAML()
+_KEY_CRYPTO = "ignis.crypto.secret"
 props = yaml.load("""
 ignis:
   container:
@@ -21,9 +24,10 @@ ignis:
       root: false
       network: "default"
     singularity:
-      source: "~/.ignis/images"
+      source: "${USER}/.ignis/images"
       default: "ignishpc.sif"
       network: "default"
+    hostnames: true
     writable: false
     #provider: ""
 """)
@@ -33,17 +37,25 @@ def get_property(key, default=None):
     names = key.split(".")
     entry = props
     for name in names:
-        if name not in entry:
+        if name not in entry or not isinstance(entry, CommentedMap):
             return default
         entry = entry[name]
     return entry
+
+
+__true = re.compile("y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON")
+
+
+def get_property_bool(key, default=None):
+    value = get_property(key, default)
+    return value is not None and __true.match(str(value))
 
 
 def has_property(key):
     names = key.split(".")
     entry = props
     for name in names:
-        if name not in entry:
+        if name not in entry or not isinstance(entry, CommentedMap):
             return False
         entry = entry[name]
     return True
@@ -53,7 +65,7 @@ def set_property(key, value):
     names = key.split(".")
     entry = props
     for name in names[:-1]:
-        if name not in entry:
+        if name not in entry or not isinstance(entry, CommentedMap):
             entry[name] = CommentedMap()
         entry = entry[name]
     entry[names[-1]] = value
@@ -84,7 +96,7 @@ def format_image(name):
 def default_image():
     prefix = ""
     if get_property("ignis.container.provider") == "singularity":
-        source = os.path.expanduser(get_property("ignis.container.singularity.source"))
+        source = get_property("ignis.container.singularity.source")
         image = source + ("" if source.endswith("/") else "/") + get_property("ignis.container.singularity.default")
         if os.path.exists(image) or ":" in image:
             return image
@@ -112,11 +124,54 @@ def yaml_merge(target, source):
             target[key] = value
 
 
-def read_file_config(path):
+def __check_openssl():
+    try:
+        return subprocess.run(["openssl", "version"], capture_output=True).returncode == 0
+    except:
+        return False
+
+
+__env_vars = re.compile(r'(?<!\\)\$(\{([^}]+)\})')
+__has_openssl = __check_openssl()
+
+
+def __yaml_expand(m):
+    if m.group(2) in os.environ:
+        return os.environ[m.group(2)]
+    return m.group(2)
+
+
+def __yaml_encode(v):
+    if not has_property(_KEY_CRYPTO):
+        raise RuntimeError(f"'{_KEY_CRYPTO}' not found")
+    if not __has_openssl:
+        raise RuntimeError("openssl is not available")
+    secret = get_property(_KEY_CRYPTO)
+    cmd = "openssl aes-256-cbc -pbkdf2 -a -e -kfile"
+    encoded = subprocess.run(cmd.split() + [secret], input=v, capture_output=True, encoding="utf-8", check=True).stdout
+    return "$" + encoded.strip() + "$"
+
+
+def __yaml_update(m):
+    for key in m:
+        value = m[key]
+        if isinstance(value, CommentedMap):
+            m[key] = __yaml_update(value)
+        elif isinstance(value, str) and len(value) > 0:
+            if "${" in value:
+                m[key] = __env_vars.sub(__yaml_expand, value)
+            elif not (value[0] == '$' and value[-1] == '$') and key[0] == '$' and key[-1] == '$':
+                try:
+                    m[key] = __yaml_encode(value)
+                except Exception as ex:
+                    print(f"warning: secret key '{key}' found but: {str(ex)}", file=sys.stderr)
+    return m
+
+
+def read_file_config(path, update=True):
     with open(path) as file:
-        data = file.read()
-        data = os.path.expandvars(data)
-        return yaml.load(data)
+        data = yaml.load(file.read())
+        return __yaml_update(data) if update else data
 
 
 def _check_singularity():
@@ -131,7 +186,7 @@ def load_config(path):
     for file in [SYSTEM_CONFIG, USER_CONFIG, path]:
         if file is not None and os.path.exists(file):
             try:
-                yaml_merge(props, read_file_config(file))
+                yaml_merge(props, read_file_config(file, False))
             except:
                 ok = False
 
@@ -140,6 +195,11 @@ def load_config(path):
 
     if not has_property("ignis.wdir"):
         set_property("ignis.wdir", os.getcwd())
+
+    if has_property(_KEY_CRYPTO):
+        set_property(_KEY_CRYPTO, os.path.expandvars(get_property(_KEY_CRYPTO)))
+
+    __yaml_update(props)
 
     return ok or (path is not None and os.path.exists(path))
 

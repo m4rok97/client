@@ -35,11 +35,8 @@ def _start(args):
     }
 
     for var in args.env:
-        try:
-            key, value = var.split("=", 1)
-            environment[key] = value
-        except:
-            raise RuntimeError("Bad enviroment variable")
+        key, value = var.split("=", 1)
+        environment[key] = value
 
     client.containers.run(
         image=image,

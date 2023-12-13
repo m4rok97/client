@@ -2,6 +2,7 @@ import docker
 import docker.errors
 from ignishpc.services import registry
 from ignishpc.services import registry_ui
+from ignishpc.services import etcd
 
 
 def _actions(m, **kargs):
@@ -16,11 +17,14 @@ def _actions(m, **kargs):
 
 
 def _run(args):
-    service = {
+    global services
+    services = {
         "status": _status,
         "registry": _actions(registry, garbage=registry._garbage),
-        "registry-ui": _actions(registry_ui)
-    }[args.service]
+        "registry-ui": _actions(registry_ui),
+        "etcd": _actions(etcd)
+    }
+    service = services[args.service]
     if "action" in args:
         return service[args.action](args)
     else:
@@ -67,19 +71,11 @@ def _destroy(args, name):
 def _status(args, name=None):
     if name is None:
         print("Service Status:")
-        print(" ", "Registry".ljust(14), end="  ")
-        _status(args, registry._container_name())
-        print(" ", "Registry-ui".ljust(14), end="  ")
-        _status(args, registry._container_name())
-        """
-        print(" ", "Nomad  ".ljust(14), end="")
-        _status(args, registry._container_name())
-        print(" ", "Zookeeper  ".ljust(14), end="")
-        _status(args, registry._container_name())
-        print(" ", "Mesos  ".ljust(14), end="")
-        _status(args, registry._container_name())
-        print(" ", "Submitter  ".ljust(14), end="")
-        _status(args, registry._container_name())"""
+        for name, actions in services.items():
+            if not isinstance(actions, dict):
+                continue
+            print(" ", name.ljust(12), end="  ")
+            actions["status"](args)
     else:
         client = docker.from_env()
         try:

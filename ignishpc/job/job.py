@@ -26,7 +26,7 @@ def _run(args):
 
 def _docker_stdin(c, con=None):
     if con is None:
-        con = c.attach_socket(params={'stdin': True, 'stream': True})
+        con = c.attach_socket(params={"stdin": True, "stream": True})
         return threading.Thread(target=_docker_stdin, daemon=True, args=[c, con]).start()
 
     sock = con if hasattr(con, "send") else con._sock
@@ -43,7 +43,7 @@ def _docker_stdin(c, con=None):
 
 
 def _container_job(args, wdir, files, it):
-    writable = configuration.get_property("ignis.container.writable")
+    writable = configuration.get_property_bool("ignis.container.writable")
     network = configuration.network()
     if configuration.get_property("ignis.container.provider") == "singularity":
         cmd = ["singularity", "exec", "--cleanenv"]
@@ -119,7 +119,7 @@ def _container_job(args, wdir, files, it):
 
 def _set_property(args, arg, key):
     if getattr(args, arg) is not None:
-        configuration.set_property(key, getattr(args, arg))
+        configuration.set_property(key, str(getattr(args, arg)))
 
 
 def _job_run(args):
@@ -134,15 +134,13 @@ def _job_run(args):
     _set_property(args, "driver_img", "ignis.driver.image")
 
     for entry in args.property:
-        if "=" not in entry:
-            raise RuntimeError("Bad property variable")
         configuration.set_property(*entry.split("=", 1))
 
     buffer = io.BytesIO()
     configuration.yaml.dump(configuration.props, buffer)
 
     env_props = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    wdir = os.path.expanduser(configuration.get_property("ignis.wdir"))
+    wdir = configuration.get_property("ignis.wdir")
 
     job = ["run"]
     files = [os.path.abspath(wdir)]
@@ -166,7 +164,7 @@ def _job_run(args):
 
     if args.static is not None:
         job += ["--static", args.static]
-        if args.static != '-' and os.path.exists(args.static):
+        if args.static != "-" and os.path.exists(args.static):
             files.append(os.path.abspath(args.static))
 
     if args.verbose:
@@ -181,12 +179,12 @@ def _job_run(args):
 
 
 def _list(args):
-    _container_job(["list"], os.path.expanduser(configuration.get_property("ignis.wdir")), [], False)
+    _container_job(["list"], configuration.get_property("ignis.wdir"), [], False)
 
 
 def _info(args):
-    _container_job(["info", args.id], os.path.expanduser(configuration.get_property("ignis.wdir")), [], False)
+    _container_job(["info", args.id], configuration.get_property("ignis.wdir"), [], False)
 
 
 def _cancel(args):
-    _container_job(["cancel", args.id], os.path.expanduser(configuration.get_property("ignis.wdir")), [], False)
+    _container_job(["cancel", args.id], configuration.get_property("ignis.wdir"), [], False)

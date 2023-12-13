@@ -1,5 +1,5 @@
 import argparse
-from ignishpc.common.formatter import SmartFormatter, desc
+from ignishpc.common.formatter import SmartFormatter, desc, key_value_t, time_t
 
 
 def _cmd(args):
@@ -10,7 +10,7 @@ def _cmd(args):
 def setup(subparsers):
     parser = subparsers.add_parser("job", **desc("Manage jobs"))
 
-    actions = parser.add_subparsers(dest="action", title="Available Actions", metavar='<action>')
+    actions = parser.add_subparsers(dest="action", title="Available Actions", metavar="<action>")
     actions.required = True
 
     setup_run(actions)
@@ -34,8 +34,7 @@ def setup_run(subparsers):
                                 epilog="""Examples:
                                      | $ ignishpc run myapp
                                      | $ ignishpc run --cores 4 --instance 2 --mem 10GB myapp --app-arg 1
-                                     | $ ignishpc run --img ./myimg.sif --cores 4 --static - myapp 1 2 3
-                                     """)
+                                     | $ ignishpc run --img ./myimg.sif --cores 4 --static - myapp 1 2 3""")
 
     run.add_argument("command", action="store",
                      help="command to run")
@@ -46,15 +45,15 @@ def setup_run(subparsers):
                      help="specify a name for the job")
     run.add_argument("-j", "--img", action="store", metavar="str",
                      help="specify a image for all containers of the job")
-    run.add_argument("-p", "--property", action="append", metavar="key=value",
+    run.add_argument("-p", "--property", action="append", metavar="key=value", type=key_value_t,
                      help="set a jot property", default=[])
     run.add_argument("-i", "--interactive", action="store_true", default=False,
                      help="attach to STDIN, STDOUT and STDERR, but job die when you exit")
-    run.add_argument("-e", "--env", action="append", metavar="key=value", default=[],
+    run.add_argument("-e", "--env", action="append", metavar="key=value", default=[], type=key_value_t,
                      help="set a job enviroment variable")
     run.add_argument("-b", "--bind", action="append", metavar="key[=value]", default=[],
                      help="set a job bind path")
-    run.add_argument("-t", "--time", action="store", metavar="[[dd-]hh:]mm:ss",
+    run.add_argument("-t", "--time", action="store", metavar="[[dd-]hh:]mm:ss", type=time_t,
                      help="set a limit on the total run time of the job")
     run.add_argument("-s", "--static", action="store", metavar="path",
                      help="force static allocation, cluster properties are load from a file. "
@@ -62,16 +61,16 @@ def setup_run(subparsers):
     run.add_argument("-v", "--verbose", action="store_true", default=False,
                      help="display detailed information about the job's execution")
 
-    props = run.add_argument_group('resource properties alias')
-    props.add_argument("--cores", action="store", metavar="n",
+    props = run.add_argument_group("resource properties alias")
+    props.add_argument("--cores", action="store", metavar="n", type=int,
                        help="set executor cores (ignis.executor.cores)")
-    props.add_argument("--instances", action="store", metavar="n",
+    props.add_argument("--instances", action="store", metavar="n", type=int,
                        help="set executor instances (ignis.executor.instances)")
     props.add_argument("--mem", action="store", metavar="n",
                        help="set executor memory (ignis.executor.memory)")
     props.add_argument("--gpu", action="store", metavar="str",
                        help="set executor gpu (ignis.executor.gpu)")
-    props.add_argument("--driver-cores", "--dcores", action="store", metavar="n",
+    props.add_argument("--driver-cores", "--dcores", action="store", metavar="n", type=int,
                        help="set driver cores (ignis.driver.cores)")
     props.add_argument("--driver-mem", "--dmem", action="store", metavar="n",
                        help="set driver memory (ignis.driver.memory)")
