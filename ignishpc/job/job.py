@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 import sys
 import threading
 import io
@@ -60,22 +61,39 @@ def _container_job(args, wdir, files, it):
         for file in files:
             cmd.extend(["--bind", file])
 
-        proc = subprocess.Popen(
-            args=cmd + [configuration.default_image(), "bash", "-c", "ignis-submit"] + args,
-            stdin=sys.stdin if it else subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE,
-            cwd=wdir,
-            encoding="utf-8",
-        )
-        proc.stdin.close()
+        with tempfile.TemporaryDirectory() as tmp:
+            singularity = os.path.join(tmp, "singularity")
+            pipe = os.path.join(tmp, "fifo")
+            os.mkfifo(pipe, mode=0o600)
+            with open(singularity, "w") as file:
+                file.write('#!/bin/env bash\necho singularity "$@">/pipe')
+            os.chmod(singularity, mode=0o700)
+            cmd.extend(["--bind", f"{singularity}:/usr/bin/singularity", "--bind", f"{pipe}:/pipe"])
+            server = None
+            try:
+                server = subprocess.Popen(
+                    args=["bash", "-c", f"while [ $PPID == {os.getpid()} ]; do bash<{pipe}; done\n"],
+                    stdout=subprocess.PIPE,
+                )
 
-        for line in iter(proc.stdout.readline, ""):
-            print(line, end="", flush=True)
+                proc = subprocess.Popen(
+                    args=cmd + [configuration.default_image(), "bash", "-c", "ignis-submit"] + args,
+                    stdin=sys.stdin if it else subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    stdout=subprocess.PIPE,
+                    cwd=wdir,
+                    encoding="utf-8",
+                )
 
-        return_code = proc.wait()
+                proc.stdin.close()
 
+                for line in iter(proc.stdout.readline, ""):
+                    print(line, end="", flush=True)
 
+                return_code = proc.wait()
+            finally:
+                if server is not None:
+                    server.kill()
     else:
         root = configuration.get_property("ignis.container.docker.root")
         other_args = {}
@@ -174,6 +192,11 @@ def _job_run(args):
         job.append("--debug")
 
     job.append(args.command)
+
+    dsocket = "/var/run/docker.sock"
+    if configuration.get_property("ignis.container.provider") == "docker" and os.path.exists(dsocket):
+        configuration.set_property(f"ignis.driver.binds.{dsocket}", dsocket)
+        files.append(dsocket)
 
     _container_job(job + args.args, wdir, files, args.interactive)
 
