@@ -8,7 +8,7 @@ authors = [
     "Juan C. Pichel <juancarlos.pichel@usc.es>"
 ]
 readme = "README.rst"
-repository = "https://github.com/ignishpc/ignishpc"
+repository = "https://github.com/ignishpc/client"
 documentation = "https://ignishpc.readthedocs.io"
 keywords = ["Big Data", "HPC", "MPI", "Multi-language", "Programming models"]
 classifiers = [
