@@ -44,9 +44,9 @@ def _docker_stdin(c, con=None):
 
 
 def _container_job(args, wdir, files, it):
-    writable = configuration.get_property_bool("ignis.container.writable")
+    writable = configuration.get_bool("ignis.container.writable")
     network = configuration.network()
-    if configuration.get_property("ignis.container.provider") == "singularity":
+    if configuration.get_string("ignis.container.provider") == "singularity":
         cmd = ["singularity", "exec", "--cleanenv"]
 
         if wdir is not None:
@@ -77,7 +77,7 @@ def _container_job(args, wdir, files, it):
                 )
 
                 proc = subprocess.Popen(
-                    args=cmd + [configuration.default_image(), "bash", "-c", "ignis-submit"] + args,
+                    args=cmd + [configuration.default_image(), "bash", "ignis-submit"] + args,
                     stdin=sys.stdin if it else subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     stdout=subprocess.PIPE,
@@ -95,7 +95,7 @@ def _container_job(args, wdir, files, it):
                 if server is not None:
                     server.kill()
     else:
-        root = configuration.get_property("ignis.container.docker.root")
+        root = configuration.get_string("ignis.container.docker.root")
         other_args = {}
 
         if network in ("host", "bridge", "none"):
@@ -107,12 +107,20 @@ def _container_job(args, wdir, files, it):
             other_args["working_dir"] = wdir
 
         container = None
+
+        def bind(f):
+            if ":" not in f:
+                return docker.types.Mount(f, f, type="bind")
+            fields = f.split(":")
+            return docker.types.Mount(source=fields[0], target=fields[1], type="bind",
+                                      read_only=len(fields) > 2 and fields[2] == "ro")
+
         try:
             container = docker.from_env().containers.create(
                 image=configuration.default_image(),
-                command=["bash", "-c", "ignis-submit"] + args,
+                command=["bash", "ignis-submit"] + args,
                 environment={},
-                mounts=[docker.types.Mount(f, f, type="bind") for f in files],
+                mounts=[bind(f) for f in files],
                 read_only=not writable,
                 user="root" if root else "{}:{}".format(os.getuid(), os.getgid()),
                 stdin_open=it,
@@ -158,7 +166,7 @@ def _job_run(args):
     configuration.yaml.dump(configuration.props, buffer)
 
     env_props = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    wdir = configuration.get_property("ignis.wdir")
+    wdir = configuration.get_string("ignis.wdir")
 
     job = ["run"]
     files = [os.path.abspath(wdir)]
@@ -194,20 +202,31 @@ def _job_run(args):
     job.append(args.command)
 
     dsocket = "/var/run/docker.sock"
-    if configuration.get_property("ignis.container.provider") == "docker" and os.path.exists(dsocket):
+    if configuration.get_string("ignis.container.provider") == "docker" and os.path.exists(dsocket):
         configuration.set_property(f"ignis.driver.binds.{dsocket}", dsocket)
         files.append(dsocket)
+
+    binds = configuration.get_property("ignis.submitter.binds", {})
+    if hasattr(binds, "items"):
+        for key, value in binds.items():
+            if ":" in value:
+                value, ro = value.split(":")
+                if value == "":
+                    value = key
+                key += ":" + ro
+            if isinstance(value, str):
+                files.append(value + ":" + key)
 
     _container_job(job + args.args, wdir, files, args.interactive)
 
 
 def _list(args):
-    _container_job(["list"], configuration.get_property("ignis.wdir"), [], False)
+    _container_job(["list"], configuration.get_string("ignis.wdir"), [], False)
 
 
 def _info(args):
-    _container_job(["info", args.id], configuration.get_property("ignis.wdir"), [], False)
+    _container_job(["info", args.id], configuration.get_string("ignis.wdir"), [], False)
 
 
 def _cancel(args):
-    _container_job(["cancel", args.id], configuration.get_property("ignis.wdir"), [], False)
+    _container_job(["cancel", args.id], configuration.get_string("ignis.wdir"), [], False)

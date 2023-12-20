@@ -204,10 +204,10 @@ def _run(args):
     }
 
     if build_args["REGISTRY"] is None:
-        build_args["REGISTRY"] = configuration.get_property("ignis.container.docker.registry")
+        build_args["REGISTRY"] = configuration.get_string("ignis.container.docker.registry")
 
     if build_args["NAMESPACE"] is None:
-        build_args["NAMESPACE"] = configuration.get_property("ignis.container.docker.namespace")
+        build_args["NAMESPACE"] = configuration.get_string("ignis.container.docker.namespace")
 
     if len(build_args["REGISTRY"]) != 0 and not build_args["REGISTRY"].endswith("/"):
         build_args["REGISTRY"] += "/"

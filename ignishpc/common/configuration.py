@@ -46,9 +46,13 @@ def get_property(key, default=None):
 __true = re.compile("y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON")
 
 
-def get_property_bool(key, default=None):
+def get_bool(key, default=None):
     value = get_property(key, default)
     return value is not None and __true.match(str(value))
+
+
+def get_string(key, default=None):
+    return str(get_property(key, default))
 
 
 def has_property(key):
@@ -73,19 +77,19 @@ def set_property(key, value):
 
 def format_image(name):
     if "/" not in name:
-        namespace = get_property("ignis.container.docker.namespace", default="ignishpc")
+        namespace = get_string("ignis.container.docker.namespace", default="ignishpc")
         if len(namespace) > 0 and namespace[-1] != "/":
             namespace += "/"
         name = namespace + name
 
     if name.count("/") == 1:
-        registry = get_property("ignis.container.docker.registry", default="")
+        registry = get_string("ignis.container.docker.registry", default="")
         if len(registry) > 0 and registry[-1] != "/":
             registry += "/"
         name = registry + name
 
     if ":" not in name or name.rindex(":") > name.rindex("/"):
-        tag = get_property("ignis.container.docker.tag", default="")
+        tag = get_string("ignis.container.docker.tag", default="")
         if len(tag) > 0 and tag[0] != ':':
             tag = ":" + tag
         name = name + tag
@@ -95,21 +99,21 @@ def format_image(name):
 
 def default_image():
     prefix = ""
-    if get_property("ignis.container.provider") == "singularity":
-        source = get_property("ignis.container.singularity.source")
-        image = source + ("" if source.endswith("/") else "/") + get_property("ignis.container.singularity.default")
+    if get_string("ignis.container.provider") == "singularity":
+        source = get_string("ignis.container.singularity.source")
+        image = source + ("" if source.endswith("/") else "/") + get_string("ignis.container.singularity.default")
         if os.path.exists(image) or ":" in image:
             return image
         prefix = "docker://"
 
-    return prefix + format_image(get_property("ignis.container.docker.default"))
+    return prefix + format_image(get_string("ignis.container.docker.default"))
 
 
 def network():
-    if get_property("ignis.container.provider") == "singularity":
-        return get_property("ignis.container.singularity.network")
+    if get_string("ignis.container.provider") == "singularity":
+        return get_string("ignis.container.singularity.network")
     else:
-        return get_property("ignis.container.docker.network")
+        return get_string("ignis.container.docker.network")
 
 
 def yaml_merge(target, source):
@@ -146,7 +150,7 @@ def __yaml_encode(v):
         raise RuntimeError(f"'{_KEY_CRYPTO}' not found")
     if not __has_openssl:
         raise RuntimeError("openssl is not available")
-    secret = get_property(_KEY_CRYPTO)
+    secret = get_string(_KEY_CRYPTO)
     cmd = "openssl aes-256-cbc -pbkdf2 -a -e -kfile"
     encoded = subprocess.run(cmd.split() + [secret], input=v, capture_output=True, encoding="utf-8", check=True).stdout
     return "$" + encoded.strip() + "$"
@@ -171,6 +175,8 @@ def __yaml_update(m):
 def read_file_config(path, update=True):
     with open(path) as file:
         data = yaml.load(file.read())
+        if data is None:
+            return CommentedMap()
         return __yaml_update(data) if update else data
 
 
@@ -197,7 +203,7 @@ def load_config(path):
         set_property("ignis.wdir", os.getcwd())
 
     if has_property(_KEY_CRYPTO):
-        set_property(_KEY_CRYPTO, os.path.expandvars(get_property(_KEY_CRYPTO)))
+        set_property(_KEY_CRYPTO, os.path.expandvars(get_string(_KEY_CRYPTO)))
 
     __yaml_update(props)
 

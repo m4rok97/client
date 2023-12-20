@@ -61,8 +61,8 @@ def _info(args):
     print("  Singularity:", _check_singularity())
 
     print("Job Environment: ")
-    print("  Working directory:", configuration.get_property("ignis.wdir"))
-    print("  Container provider:", configuration.get_property("ignis.container.provider"))
+    print("  Working directory:", configuration.get_string("ignis.wdir"))
+    print("  Container provider:", configuration.get_string("ignis.container.provider"))
     print("  Default image:", configuration.default_image())
 
 

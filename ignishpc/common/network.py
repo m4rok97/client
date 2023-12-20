@@ -12,7 +12,7 @@ def get_hostname():
 
 
 def get_address():
-    if configuration.get_property_bool("ignis.container.hostnames"):
+    if configuration.get_bool("ignis.container.hostnames"):
         return get_hostname()
     else:
         return get_local_ip()
