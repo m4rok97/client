@@ -55,9 +55,9 @@ def setup_run(subparsers):
                      help="set a job bind path")
     run.add_argument("-t", "--time", action="store", metavar="[[dd-]hh:]mm:ss", type=time_t,
                      help="set a limit on the total run time of the job")
-    run.add_argument("-s", "--static", action="store", metavar="path",
+    run.add_argument("-s", "--static", action="store", metavar="path|int",
                      help="force static allocation, cluster properties are load from a file. "
-                          "Use '-' for a single cluster")
+                          "Use 'int' for a homogeneous cluster")
     run.add_argument("-v", "--verbose", action="store_true", default=False,
                      help="display detailed information about the job's execution")
 

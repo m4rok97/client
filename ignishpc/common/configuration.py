@@ -24,7 +24,7 @@ ignis:
       root: false
       network: "default"
     singularity:
-      source: "${USER}/.ignis/images"
+      source: "${HOME}/.ignis/images"
       default: "ignishpc.sif"
       network: "default"
     hostnames: true
