@@ -27,7 +27,6 @@ ignis:
       source: "${HOME}/.ignis/images"
       default: "ignishpc.sif"
       network: "default"
-    hostnames: true
     writable: false
     #provider: ""
 """)
@@ -48,7 +47,7 @@ __true = re.compile("y|Y|yes|Yes|YES|true|True|TRUE|on|On|ON")
 
 def get_bool(key, default=None):
     value = get_property(key, default)
-    return value is not None and __true.match(str(value))
+    return value is not None and __true.match(str(value)) is not None
 
 
 def get_string(key, default=None):
@@ -204,6 +203,21 @@ def load_config(path):
 
     if has_property(_KEY_CRYPTO):
         set_property(_KEY_CRYPTO, os.path.expandvars(get_string(_KEY_CRYPTO)))
+
+    if not has_property("ignis.submitter.env.TZ") or \
+            not has_property("ignis.driver.env.TZ") or \
+            not has_property("ignis.executor.env.TZ"):
+        if "TZ" in os.environ:
+            tz = os.getenv("TZ")
+        else:
+            import datetime
+            tz = datetime.datetime.now().astimezone().strftime('%Z')
+        set_property("ignis.submitter.env.TZ", tz)
+        set_property("ignis.driver.env.TZ", tz)
+        set_property("ignis.executor.env.TZ", tz)
+
+    if not has_property("ignis.submitter.binds./tmp"):
+        set_property("ignis.submitter.binds./tmp","/tmp")
 
     __yaml_update(props)
 
