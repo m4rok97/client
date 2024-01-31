@@ -274,22 +274,23 @@ def _run(args):
         libs = dict()
         for name in list(dockerfiles.keys()) + get_cores:
             if name.endswith("-builder"):
-                cores.add(name[:-len("-builder")])
+                core_name = name[:-len("-builder")]
+                cores.add(core_name)
+                if "-" in core_name:
+                    raise RuntimeError("core must not contain '-': " + core_name)
             elif name.endswith("-lib"):
-                try:
-                    lib, sub_lib = name.split("-lib", 1)
-                    core, lib_name = lib.rsplit("-", 1)
-                    if core not in libs:
-                        cores.add(core)
-                        libs[core] = list()
-                    libs[core].append(lib_name)
-                    while sub_lib != "":
-                        lib, sub_lib = sub_lib.split("-lib", 1)
-                        lib_name += "-lib" + lib
-                        libs[core].append(lib_name)
-                except:
-                    raise RuntimeError(name, "is a bad lib name")
-
+                fields = name.split("-")[:-1]
+                core = fields[0]
+                libs_name = fields[1:]
+                if len(libs_name) == 0:
+                    raise RuntimeError("lib must have a name: " + name)
+                if core not in libs:
+                    cores.add(core)
+                    libs[core] = list()
+                prefix = core + "-"
+                for lib in libs_name:
+                    libs[core].append(prefix + lib)
+                    prefix += lib + "-"
         if len(cores) > 0 and "base" not in cores:
             cores.add("base")
         cores = _rmdup(sorted(cores))
@@ -304,8 +305,8 @@ def _run(args):
         for core in libs:
             libs[core] = _rmdup(sorted(libs[core]))
             for lib in libs[core]:
-                msg = " #no sources" if core + "-" + lib + "-lib" not in dockerfiles else ""
-                print("  " + lib + " (" + core + ")" + msg)
+                msg = " #no sources" if lib not in dockerfiles else ""
+                print("  " + lib.split("-", maxsplit=1)[1] + " (" + core + ")" + msg)
 
         if args.core_images:
             for core in cores:

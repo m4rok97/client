@@ -20,6 +20,8 @@ def setup(subparsers):
     info = actions.add_parser("info", **desc("Get job info"))
     info.add_argument("id", action="store", metavar="str",
                       help="job id")
+    info.add_argument("-f", "--field", action="store", metavar="str",
+                     help="show only a field of the job")
 
     cancel = actions.add_parser("cancel", **desc("Cancel a job"))
     cancel.add_argument("id", action="store", metavar="str",
@@ -48,7 +50,7 @@ def setup_run(subparsers):
     run.add_argument("-p", "--property", action="append", metavar="key=value", type=key_value_t,
                      help="set a jot property", default=[])
     run.add_argument("-i", "--interactive", action="store_true", default=False,
-                     help="attach to STDIN, STDOUT and STDERR, but job die when you exit")
+                     help="attach to STDIN, STDOUT and STDERR, but job dies when you exit")
     run.add_argument("-e", "--env", action="append", metavar="key=value", default=[], type=key_value_t,
                      help="set a job enviroment variable")
     run.add_argument("-b", "--bind", action="append", metavar="key[=value]", default=[],

@@ -43,7 +43,7 @@ def setup(subparsers):
     build.add_argument("-a", "--all", action="store_true",
                        help="build optional images")
     build.add_argument("-j", "--jobs", action="store", metavar="n", type=int,
-                       help="set a limit of cores to build an image, default auto")
+                       help="try to set a limit of cores to build an image, default auto")
     build.add_argument("--ignore", action="store", metavar="folder", nargs="+",
                        help="ignore images that contains wildcard pattern in name", default=[])
     build.add_argument("--enable", action="store", metavar="folder", nargs="+",

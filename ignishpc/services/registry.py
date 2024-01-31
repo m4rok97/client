@@ -46,7 +46,7 @@ def _start(args):
             print("certificates found")
         else:
             print("certificates not found, generating self-sign certificate")
-            cmd = ("req -newkey rsa:4096 -nodes -sha256 "
+            cmd = ("req -newkey rsa:2048 -nodes -sha256 "
                    f"-keyout {environment['REGISTRY_HTTP_TLS_KEY']} -x509 -days 365 "
                    f"-out {environment['REGISTRY_HTTP_TLS_CERTIFICATE']} "
                    "-subj '/C=ig/ST=ignis/L=ignis/O=ignis/CN=www.ignishpc.readthedocs.io'")
