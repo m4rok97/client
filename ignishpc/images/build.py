@@ -230,6 +230,7 @@ def _run(args):
                     git.Repo.clone_from(field[0], target, branch=field[1])
                 else:
                     git.Repo.clone_from(field[0], target)
+                shutil.rmtree(os.path.join(target, ".git"), ignore_errors=True)
             else:
                 shutil.copytree(src, target, dirs_exist_ok=True, ignore=_ignore_hidden)
             if "Dockerfiles" in os.listdir(target):

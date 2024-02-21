@@ -96,7 +96,7 @@ def _rm(args):
 
 
 def _push(args):
-    images = _get_images(args.pattern, args.untagged)
+    images = _get_images(args.pattern, False)
     print("Following images will be pushed:")
     _print_images(images)
 
