@@ -27,6 +27,7 @@ ignis:
       source: "${HOME}/.ignis/images"
       default: "ignishpc.sif"
       network: "default"
+    hostpipe: false
     writable: false
     #provider: ""
 """)

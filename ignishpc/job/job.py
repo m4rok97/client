@@ -1,5 +1,6 @@
 import os
 import subprocess
+from multiprocessing import Process
 import tempfile
 import sys
 import threading
@@ -61,6 +62,7 @@ def _container_job(args, it):
     env["IGNIS_OPTIONS"] = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     prop_binds = configuration.get_property("ignis.submitter.binds", {})
+
     def getBinds(p, prefix=""):
         if hasattr(prop_binds, "items"):
             for key, value in p.items():
@@ -72,7 +74,8 @@ def _container_job(args, it):
                         key += ":" + ro
                     binds.append(value + ":" + prefix + key)
                 elif hasattr(prop_binds, "items"):
-                    getBinds(value, key+".")
+                    getBinds(value, key + ".")
+
     getBinds(prop_binds)
 
     prop_env = configuration.get_property("ignis.submitter.env", {})
@@ -99,39 +102,22 @@ def _container_job(args, it):
         for bind in binds:
             cmd.extend(["--bind", bind])
 
-        with tempfile.TemporaryDirectory() as tmp:
-            singularity = os.path.join(tmp, "singularity")
-            pipe = os.path.join(tmp, "fifo")
-            os.mkfifo(pipe, mode=0o600)
-            with open(singularity, "w") as file:
-                file.write('#!/bin/env bash\necho singularity "$@">/pipe')
-            os.chmod(singularity, mode=0o700)
-            cmd.extend(["--bind", f"{singularity}:/usr/bin/singularity", "--bind", f"{pipe}:/pipe"])
-            server = None
-            try:
-                server = subprocess.Popen(
-                    args=["bash", "-c", f"while [ $PPID == {os.getpid()} ]; do bash<{pipe}; done\n"],
-                    stdout=subprocess.PIPE,
-                )
+        proc = subprocess.Popen(
+            args=cmd + [configuration.default_image(), "bash", "ignis-submit"] + args,
+            stdin=sys.stdin if it else subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            cwd=wdir,
+            encoding="utf-8",
+        )
 
-                proc = subprocess.Popen(
-                    args=cmd + [configuration.default_image(), "bash", "ignis-submit"] + args,
-                    stdin=sys.stdin if it else subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    stdout=subprocess.PIPE,
-                    cwd=wdir,
-                    encoding="utf-8",
-                )
+        proc.stdin.close()
 
-                proc.stdin.close()
+        for line in iter(proc.stdout.readline, ""):
+            print(line, end="", flush=True)
 
-                for line in iter(proc.stdout.readline, ""):
-                    print(line, end="", flush=True)
+        return_code = proc.wait()
 
-                return_code = proc.wait()
-            finally:
-                if server is not None:
-                    server.kill()
     else:
         root = configuration.get_string("ignis.container.docker.root")
         other_args = {}
@@ -221,7 +207,7 @@ def _job_run(args):
         job += ["--static", args.static]
         if args.static != "-" and os.path.exists(args.static):
             file = os.path.abspath(args.static)
-            configuration.set_property(f"ignis.submitter.binds.{file}={file}")
+            configuration.set_property(f"ignis.submitter.binds.{file}", file)
 
     if args.verbose:
         job.append("--verbose")
@@ -231,7 +217,34 @@ def _job_run(args):
 
     job.append(args.command)
 
-    _container_job(job + args.args, args.interactive)
+    if not configuration.get_bool("ignis.container.hostpipe") and \
+            not configuration.get_string("ignis.container.provider") == "singularity":
+        return _container_job(job + args.args, args.interactive)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        pipes = ["in", "out", "err", "code"]
+
+        os.mkfifo(os.path.join(tmp, pipes[0]), mode=0o600)
+        os.mkfifo(os.path.join(tmp, pipes[-1]), mode=0o600)
+
+        for p in pipes:
+            configuration.set_property(f"ignis.submitter.binds./ignis-pipe/{p}", f"{os.path.join(tmp, p)}")
+
+        def run_pipe():
+            while True:
+                with open(os.path.join(tmp, pipes[0])) as fifo:
+                    cmd = fifo.read()
+                with open(os.path.join(tmp, pipes[1]), "w") as out, open(os.path.join(tmp, pipes[2]), "w") as err:
+                    code = subprocess.run(args=["bash", "-c", cmd], stdout=out, stderr=err).returncode
+                with open(os.path.join(tmp, pipes[3]), "w") as file:
+                    file.write(str(code))
+
+        pipe_proc = Process(target=run_pipe, name="ignis-pipe")
+        try:
+            pipe_proc.start()
+            _container_job(job + args.args, args.interactive)
+        finally:
+            pipe_proc.kill()
 
 
 def _list(args):
@@ -239,7 +252,10 @@ def _list(args):
 
 
 def _info(args):
-    _container_job(["info", args.id], False)
+    cmd = ["info", args.id]
+    if args.field is not None:
+        cmd.extend(["--field", args.field])
+    _container_job(cmd, False)
 
 
 def _cancel(args):
