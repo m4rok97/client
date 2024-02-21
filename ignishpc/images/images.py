@@ -30,30 +30,29 @@ def _get_images(patterns, untagged=False):
     for entry in ignis_images:
         has_pattern = any([any([fnmatch.fnmatch(tag, pat) for tag in entry.tags]) for pat in patterns])
 
-        if (len(entry.tags) == 0 and untagged) or len(patterns) == 0 or has_pattern:
+        if (len(entry.tags) > 0 and (len(patterns) == 0 or has_pattern)) or (len(entry.tags) == 0 and untagged):
             images.append(entry)
 
     return images
 
 
-def _print_images(images, patterns=[]):
+def _print_images(images):
     table = list()
     for img in images:
-        tags = [tag for tag in img.tags if any([fnmatch.fnmatch(tag, pat) for pat in patterns])]
-
         table.append((img.short_id.split(":")[1],
                       _image_date(img),
                       img.attrs["Architecture"] if "Architecture" in img.attrs else "",
-                      " ".join(tags) if len(tags) > 0 else "<none>"))
+                      " ".join(img.tags) if len(img.tags) > 0 else "<none>"))
 
         now = datetime.datetime.now()
         table = sorted(table, key=lambda row: now - (row[1] if row[1] is not None else datetime.datetime.min),
                        reverse=True)
-        print("IMAGE ID       CREATED        ARCH     TAG")
-        for img_id, created, arch, tag in table:
-            print(img_id.ljust(14), (_date_format(now - created) if created is not None else "").ljust(14),
-                  arch.ljust(8),
-                  tag)
+
+    print("IMAGE ID       CREATED        ARCH     TAG")
+    for img_id, created, arch, tag in table:
+        print(img_id.ljust(14), (_date_format(now - created) if created is not None else "").ljust(14),
+              arch.ljust(8),
+              tag)
 
 
 def _ask_before(args):

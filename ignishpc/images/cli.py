@@ -66,13 +66,13 @@ def setup(subparsers):
     rm.add_argument("-u", "--untagged", action="store_true",
                     help="remove images without tags", default=False)
     rm.add_argument("-f", "--force", action="store_true",
-                    help="force removal of the image", default=False)
+                    help="force image removal", default=False)
     rm.add_argument("-y", "--yes", action="store_true",
                     help="skip confirmation prompt for image removal", default=False)
 
     push = actions.add_parser("push", **desc("Push images"))
     push.add_argument("-p", "--pattern", action="append", metavar="str", default=[],
-                      help="image wildcard pattern")
+                      help="filter images by wildcard pattern")
     push.add_argument("-y", "--yes", action="store_true",
                       help="skip confirmation prompt for image push", default=False)
 
