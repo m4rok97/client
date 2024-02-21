@@ -27,7 +27,7 @@ You can install IgnisHPC Client using pip::
 
 or::
 
- $ pip install https://github.com/ignishpc/client
+ $ pip install git+https://github.com/ignishpc/client
 
 
 External requirements

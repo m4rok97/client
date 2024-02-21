@@ -72,9 +72,9 @@ def setup(subparsers):
 
     push = actions.add_parser("push", **desc("Push images"))
     push.add_argument("-p", "--pattern", action="append", metavar="str", default=[],
-                      help="filter images by wildcard pattern")
+                      help="image wildcard pattern")
     push.add_argument("-y", "--yes", action="store_true",
-                      help="skip confirmation prompt for image removal push", default=False)
+                      help="skip confirmation prompt for image push", default=False)
 
     pull = actions.add_parser("pull", **desc("Pull a image"))
     pull.add_argument("image", action="store", help="image name")
