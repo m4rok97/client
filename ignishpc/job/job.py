@@ -119,7 +119,7 @@ def _container_job(args, it):
         return_code = proc.wait()
 
     else:
-        root = configuration.get_string("ignis.container.docker.root")
+        root = configuration.get_bool("ignis.container.docker.root")
         other_args = {}
 
         if network in ("host", "bridge", "none"):
