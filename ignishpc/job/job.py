@@ -139,6 +139,11 @@ def _container_job(args, it):
             return docker.types.Mount(source=fields[0], target=fields[1], type="bind",
                                       read_only=len(fields) > 2 and fields[2] == "ro")
 
+        key_sock = "ignis.submitter.binds./var/run/docker.sock"
+        group_add = []
+        if not root and configuration.has_property(key_sock):
+            group_add.append(os.stat(configuration.get_property(key_sock)).st_gid)
+
         try:
             container = docker.from_env().containers.create(
                 image=configuration.default_image(),
@@ -147,6 +152,7 @@ def _container_job(args, it):
                 mounts=[to_mount(bind) for bind in binds],
                 read_only=not writable,
                 user="root" if root else "{}:{}".format(os.getuid(), os.getgid()),
+                group_add=group_add,
                 stdin_open=it,
                 **other_args
             )
