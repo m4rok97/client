@@ -141,7 +141,20 @@ def _container_job(args, it):
 
         key_sock = "ignis.submitter.binds./var/run/docker.sock"
         group_add = []
-        if not root and configuration.has_property(key_sock):
+        if not root and sys.platform.startswith("darwin") and (
+                not configuration.has_property("ignis.container.provider") or
+                configuration.get_property("ignis.container.provider") == "docker"):
+            result = docker.from_env().containers.run(
+                image="alpine:3.19",
+                remove=True,
+                read_only=True,
+                stdout=True,
+                mounts=[to_mount("/var/run/docker.sock")],
+                command=["ls", "-l", "/var/run/docker.sock"]
+            ).decode("UTF-8")
+            group_add.append(result.split()[3])
+
+        elif not root and configuration.has_property(key_sock):
             group_add.append(os.stat(configuration.get_property(key_sock)).st_gid)
 
         try:
