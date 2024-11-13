@@ -243,8 +243,9 @@ def _job_run(args):
     with tempfile.TemporaryDirectory() as tmp:
         pipes = ["in", "out", "err", "code"]
 
-        os.mkfifo(os.path.join(tmp, pipes[0]), mode=0o600)
-        os.mkfifo(os.path.join(tmp, pipes[-1]), mode=0o600)
+        for p in pipes:
+            os.mkfifo(os.path.join(tmp, p), mode=0o600)
+
 
         for p in pipes:
             configuration.set_property(f"ignis.submitter.binds./ignis-pipe/{p}", f"{os.path.join(tmp, p)}")
