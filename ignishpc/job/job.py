@@ -250,6 +250,7 @@ def _job_run(args):
             configuration.set_property(f"ignis.submitter.binds./ignis-pipe/{p}", f"{os.path.join(tmp, p)}")
 
         def run_pipe():
+            print("Executing run pipe...")
             while True:
                 with open(os.path.join(tmp, pipes[0])) as fifo:
                     cmd = fifo.read()
@@ -260,10 +261,12 @@ def _job_run(args):
 
         pipe_proc = Process(target=run_pipe, name="ignis-pipe")
         try:
+            print("Starting run pipe...")
             pipe_proc.start()
             _container_job(job + args.args, args.interactive)
         finally:
             pipe_proc.kill()
+            print("Run pipe process killed")
 
 
 def _list(args):
