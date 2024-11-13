@@ -244,7 +244,9 @@ def _job_run(args):
         pipes = ["in", "out", "err", "code"]
 
         for p in pipes:
-            os.mkfifo(os.path.join(tmp, p), mode=0o600)
+            pipe_path = os.path.join(tmp, p)
+            os.mkfifo(pipe_path, mode=0o600)
+            logging.info(f"Created pipe at {pipe_path}")
 
 
         for p in pipes:
