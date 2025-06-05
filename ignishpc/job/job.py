@@ -55,7 +55,8 @@ def _container_job(args, it):
     if configuration.get_string("ignis.container.provider") == "docker" and os.path.exists(dsocket):
         configuration.set_property(f"ignis.submitter.binds.{dsocket}", dsocket)
 
-    configuration.set_property(f"ignis.submitter.binds.{os.path.abspath(wdir)}", os.path.abspath(wdir))
+    configuration.set_property(
+        f"ignis.submitter.binds.{os.path.abspath(wdir)}", os.path.abspath(wdir))
 
     buffer = io.BytesIO()
     configuration.yaml.dump(configuration.props, buffer)
@@ -103,7 +104,7 @@ def _container_job(args, it):
             cmd.extend(["--bind", bind])
 
         proc = subprocess.Popen(
-            args=cmd + [configuration.default_image(), "bash", "ignis-submit"] + args,
+            args=cmd + [configuration.default_image(), "ignis-submit"] + args,
             stdin=sys.stdin if it else subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE,
@@ -155,16 +156,18 @@ def _container_job(args, it):
             group_add.append(result.split()[3])
 
         elif not root and configuration.has_property(key_sock):
-            group_add.append(os.stat(configuration.get_property(key_sock)).st_gid)
+            group_add.append(
+                os.stat(configuration.get_property(key_sock)).st_gid)
 
         try:
             container = docker.from_env().containers.create(
                 image=configuration.default_image(),
-                command=["bash", "ignis-submit"] + args,
+                command=["ignis-submit"] + args,
                 environment=env,
                 mounts=[to_mount(bind) for bind in binds],
                 read_only=not writable,
-                user="root" if root else "{}:{}".format(os.getuid(), os.getgid()),
+                user="root" if root else "{}:{}".format(
+                    os.getuid(), os.getgid()),
                 group_add=group_add,
                 stdin_open=it,
                 **other_args
@@ -173,7 +176,8 @@ def _container_job(args, it):
             if it:
                 _docker_stdin(container)
 
-            output = container.logs(stdout=True, stderr=True, stream=True, follow=True)
+            output = container.logs(
+                stdout=True, stderr=True, stream=True, follow=True)
             for line in output:
                 print(line.decode("utf-8"), end="", flush=True)
 
@@ -241,35 +245,30 @@ def _job_run(args):
         return _container_job(job + args.args, args.interactive)
 
     with tempfile.TemporaryDirectory() as tmp:
-        pipes = ["in", "out", "err", "code"]
+        configuration.set_property(f"ignis.submitter.binds./ignis-pipes", tmp)
+        files = [os.path.join(tmp, f)
+                 for f in ["run", "code", "out", "err", "script"]]
 
-        for p in pipes:
-            pipe_path = os.path.join(tmp, p)
-            os.mkfifo(pipe_path, mode=0o600)
-            print(f"Created pipe at {pipe_path}")
-
-
-        for p in pipes:
-            configuration.set_property(f"ignis.submitter.binds./ignis-pipe/{p}", f"{os.path.join(tmp, p)}")
+        os.mkfifo(files[0], mode=0o600)
+        os.mkfifo(files[1], mode=0o600)
 
         def run_pipe():
-            print("Executing run pipe...")
-            while True:
-                with open(os.path.join(tmp, pipes[0])) as fifo:
-                    cmd = fifo.read()
-                with open(os.path.join(tmp, pipes[1]), "w") as out, open(os.path.join(tmp, pipes[2]), "w") as err:
-                    code = subprocess.run(args=["bash", "-c", cmd], stdout=out, stderr=err).returncode
-                with open(os.path.join(tmp, pipes[3]), "w") as file:
-                    file.write(str(code))
+            with open(files[0]) as fifo:
+                while True:
+                    run = fifo.readline()
+                    if run == "run\n":
+                        with open(files[2], "w") as out, open(files[3], "w") as err:
+                            code = subprocess.run(
+                                args=["bash", files[4]], stdout=out, stderr=err).returncode
+                        with open(files[1], "w") as file:
+                            file.write(str(code))
 
         pipe_proc = Process(target=run_pipe, name="ignis-pipe")
         try:
-            print("Starting run pipe...")
             pipe_proc.start()
             _container_job(job + args.args, args.interactive)
         finally:
             pipe_proc.kill()
-            print("Run pipe process killed")
 
 
 def _list(args):
